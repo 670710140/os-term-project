@@ -4,8 +4,8 @@
  * ===== ไฟล์นี้เป็นโครงเปล่า นักศึกษาต้องเขียนเอง =====
  *
  * สิ่งที่คลาสนี้ต้องทำได้:
- *   - เก็บงานที่รอ Worker อยู่
- *   - หยิบงานถัดไปตามนโยบายที่เลือก (FCFS หรือ Priority)
+ *   - เก็บงานที่รอ Worker อยู่ ✅
+ *   - หยิบงานถัดไปตามนโยบายที่เลือก (FCFS หรือ Priority) ✅
  *   - ถูกเรียกจากหลาย Thread พร้อมกันได้อย่างปลอดภัย
  *
  * ข้อกำหนดจากโจทย์ที่เกี่ยวกับคลาสนี้:
@@ -17,19 +17,28 @@
  * จะออกแบบเป็นคลาสเดียวที่รับนโยบายเข้ามา หรือแยกเป็นสองคลาส
  * หรือใช้โครงสร้างข้อมูลสำเร็จรูปของ Java ก็ได้ ขอให้อธิบายเหตุผลได้ใน Demo
  */
+
+/*
+    ใช้ BlockingQueue สำหรับ การเขียน FCFS
+ */
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+
 public class ReadyQueue {
-
     // TODO: เก็บนโยบาย (Config.Policy) และโครงสร้างข้อมูลที่ใช้เก็บงาน
-
+    private BlockingQueue<Job> queue;
+    
     public ReadyQueue(Config.Policy policy) {
         // TODO
+        queue = new LinkedBlockingQueue<>();
         throw new UnsupportedOperationException("TODO: ReadyQueue constructor");
     }
 
     /** ใส่งานเข้าคิว เรียกโดย Scheduler Thread */
     public void add(Job job) {
         // TODO
-        throw new UnsupportedOperationException("TODO: ReadyQueue.add");
+        queue.add(job); //บรรทัดนี่นะ มันคือการ เอาค่า จาก add จาก เมธอด add มาใส่ใน ✅ เก็บงาน
+        //throw new UnsupportedOperationException("TODO: ReadyQueue.add");
     }
 
     /**
@@ -40,12 +49,14 @@ public class ReadyQueue {
      */
     public Job take() throws InterruptedException {
         // TODO
-        throw new UnsupportedOperationException("TODO: ReadyQueue.take");
+        return queue.take(); //เอางานไปทำ✅
+        //throw new UnsupportedOperationException("TODO: ReadyQueue.take");
     }
 
     /** จำนวนงานที่รออยู่ตอนนี้ ใช้โดย Monitor — ต้องอ่านได้อย่างปลอดภัย */
     public int size() {
         // TODO
-        throw new UnsupportedOperationException("TODO: ReadyQueue.size");
+        return queue.size();
+        //throw new UnsupportedOperationException("TODO: ReadyQueue.size");
     }
 }
