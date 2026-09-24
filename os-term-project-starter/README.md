@@ -122,7 +122,7 @@ java Main ../workloads/jobs_standard.csv priority 3 1 2 > ../logs/standard_prior
 อย่าเขียนทุกคลาสพร้อมกัน ให้ทำทีละขั้นและต้องรันได้จริงทุกขั้น
 
 **ขั้นที่ 1 — ให้งานวิ่งจากต้นทางถึงปลายทางก่อน**
-เขียน `ReadyQueue` แบบง่ายที่สุด (FCFS อย่างเดียว) + `JobGenerator` + `Scheduler` + `Worker` หนึ่งตัว
+เขียน `ReadyQueue` แบบง่ายที่สุด (FCFS อย่างเดียว)✅ + `JobGenerator` + `Scheduler` + `Worker` หนึ่งตัว
 ตัด resource และค่าวัดผลออกไปก่อน ให้เห็นว่างานถูกหยิบไปทำตามลำดับ
 **นี่คือสิ่งที่ต้องโชว์ให้ได้ในจุดตรวจกลางทาง**
 
