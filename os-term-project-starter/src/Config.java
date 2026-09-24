@@ -32,8 +32,7 @@ public final class Config {
     public final int printerPermits;
     public final int databasePermits;
 
-    private Config(String workloadPath, Policy policy, int workers,
-                   int printerPermits, int databasePermits) {
+    private Config(String workloadPath, Policy policy, int workers,int printerPermits, int databasePermits) {
         this.workloadPath = workloadPath;
         this.policy = policy;
         this.workers = workers;
