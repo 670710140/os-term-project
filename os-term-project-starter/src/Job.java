@@ -34,8 +34,7 @@ public class Job {
      */
     public final int sequence;
 
-    public Job(String id, long arrivalMs, int priority, long workMs,
-               ResourceType resource, long resourceMs, int sequence) {
+    public Job(String id, long arrivalMs, int priority, long workMs,ResourceType resource, long resourceMs, int sequence) {
         this.id = id;
         this.arrivalMs = arrivalMs;
         this.priority = priority;
