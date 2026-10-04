@@ -24,7 +24,9 @@ public class Job {
     /** ทรัพยากรร่วมที่ต้องใช้ หรือ NONE ถ้าไม่ต้องใช้ */
     public final ResourceType resource;
 
-    /** ระยะเวลาที่ถือครองทรัพยากร (มิลลิวินาที) เป็น 0 เสมอเมื่อ resource เป็น NONE */
+    /**
+     * ระยะเวลาที่ถือครองทรัพยากร (มิลลิวินาที) เป็น 0 เสมอเมื่อ resource เป็น NONE
+     */
     public final long resourceMs;
 
     /**
@@ -34,7 +36,19 @@ public class Job {
      */
     public final int sequence;
 
-    public Job(String id, long arrivalMs, int priority, long workMs,ResourceType resource, long resourceMs, int sequence) {
+    //=====================================================================
+    private long actualArrivalMs = -1;
+
+    public void setActualArrivalMs(long actualArrivalMs) {
+        this.actualArrivalMs = actualArrivalMs;
+    }
+
+    public long getActualArrivalMs() {
+        return actualArrivalMs;
+    }
+    //=====================================================================
+    public Job(String id, long arrivalMs, int priority, long workMs, ResourceType resource, long resourceMs,
+            int sequence) {
         this.id = id;
         this.arrivalMs = arrivalMs;
         this.priority = priority;
@@ -48,18 +62,18 @@ public class Job {
     // TODO (นักศึกษา): เพิ่มฟิลด์สำหรับเก็บค่าที่ใช้วัดผลของงานชิ้นนี้เอง
     //
     // ค่าที่โครงงานต้องการ (ดูหัวข้อ 8 ของเอกสารโจทย์):
-    //   - เวลาที่เข้าสู่ระบบจริง
-    //   - เวลาที่เริ่มถูกทำโดย Worker
-    //   - เวลาที่ทำเสร็จ
-    //   - เวลาที่เริ่มรอ resource และเวลารอ resource รวม
+    // - เวลาที่เข้าสู่ระบบจริง
+    // - เวลาที่เริ่มถูกทำโดย Worker
+    // - เวลาที่ทำเสร็จ
+    // - เวลาที่เริ่มรอ resource และเวลารอ resource รวม
     //
     // สามคำถามที่ต้องตอบให้ได้ก่อนเขียน และจะถูกถามใน Demo:
-    //   1. ใช้เวลาจากนาฬิกาตัวไหน (ดู ProjectLogger.now() ซึ่งให้เวลาฐานเดียว
-    //      กับที่ปรากฏใน log ทำให้ค่าที่วัดกับ log ตรวจสอบกันได้)
-    //   2. ฟิลด์ใดถูกเขียนโดย Thread หนึ่งแล้วอ่านโดยอีก Thread หนึ่ง
-    //      และต้องป้องกันอย่างไร
-    //   3. ผลที่ได้ต้องสอดคล้องกับสมการตรวจสอบในหัวข้อ 8:
-    //      Turnaround = Waiting + workMs + Resource Wait + resourceMs
+    // 1. ใช้เวลาจากนาฬิกาตัวไหน (ดู ProjectLogger.now() ซึ่งให้เวลาฐานเดียว
+    // กับที่ปรากฏใน log ทำให้ค่าที่วัดกับ log ตรวจสอบกันได้)
+    // 2. ฟิลด์ใดถูกเขียนโดย Thread หนึ่งแล้วอ่านโดยอีก Thread หนึ่ง
+    // และต้องป้องกันอย่างไร
+    // 3. ผลที่ได้ต้องสอดคล้องกับสมการตรวจสอบในหัวข้อ 8:
+    // Turnaround = Waiting + workMs + Resource Wait + resourceMs
     // =====================================================================
 
     @Override

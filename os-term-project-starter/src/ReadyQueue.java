@@ -31,7 +31,7 @@ public class ReadyQueue {
     public ReadyQueue(Config.Policy policy) {
         // TODO
         queue = new LinkedBlockingQueue<>();
-        throw new UnsupportedOperationException("TODO: ReadyQueue constructor");
+        //throw new UnsupportedOperationException("TODO: ReadyQueue constructor");
     }
 
     /** ใส่งานเข้าคิว เรียกโดย Scheduler Thread */
