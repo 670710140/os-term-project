@@ -1,3 +1,5 @@
+import java.util.concurrent.BlockingQueue;
+
 /**
  * Thread ที่ดึงงานจาก Ready Queue ไปทำจนเสร็จ
  *
@@ -20,22 +22,45 @@
 public class Worker extends Thread {
 
     // TODO: เก็บ ReadyQueue, ResourceManager, Statistics และ logger
+    private ResourceManager resourceManager;
+    private ReadyQueue readyQueue;
+    private ProjectLogger logger;
+    private  Statistics statistics;
 
     public Worker(String name, ReadyQueue readyQueue, ResourceManager resources,
                   Statistics statistics, ProjectLogger logger) {
         super(name);
         // TODO
+        this.readyQueue = readyQueue;
+        this.resourceManager = resources;
+        this.logger = logger;
+        this.statistics = statistics;
         throw new UnsupportedOperationException("TODO: Worker constructor");
     }
 
     @Override
     public void run() {
         // TODO: วนรับงานและเรียก processJob จนกว่าจะได้รับสัญญาณให้หยุด
+         try {
+            Job job;
+            while ((job = readyQueue.take())!=null) {
+                //เรียกใช้processJob 
+                processJob(job);
+
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** ทำงานหนึ่งชิ้นให้จบตามลำดับ 5 ขั้นด้านบน */
     private void processJob(Job job) throws InterruptedException {
         // TODO
+        logger.jobStarted(job);
+        Thread.sleep(job.workMs);
+        logger.workFinished(job);
+        logger.jobCompleted(job);
+
         throw new UnsupportedOperationException("TODO: Worker.processJob");
     }
 }
