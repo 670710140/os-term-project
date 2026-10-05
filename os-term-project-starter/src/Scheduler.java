@@ -25,23 +25,24 @@ public class Scheduler extends Thread {
     private ReadyQueue readyQueue;
     private ProjectLogger logger;
 
-    public Scheduler(BlockingQueue<Job> arrivalQueue, ReadyQueue readyQueue, ProjectLogger logger) {
+    public Scheduler(ReadyQueue readyQueue, ProjectLogger logger, BlockingQueue<Job> arrivalQueue) {
         super("scheduler");
         // TODO
         // throw new UnsupportedOperationException("TODO: Scheduler constructor");
-        this.arrivalQueue = arrivalQueue;
         this.readyQueue = readyQueue;
         this.logger = logger;
-
+        this.arrivalQueue = arrivalQueue;
     }
 
     @Override
     public void run() {
-        // TODO: วนรับงานเข้ามาแล้วใส่ ReadyQueue จนกว่าจะได้รับสัญญาณให้หยุด
-        while (/*หยุดยังไง */) {
-            Job job = arrivalQueue.take();
-            readyQueue.add(job);
+        try {
+            while (true) {
+                Job job = arrivalQueue.take(); //รับงานมา
+                readyQueue.add(job);// ส่งงานไป
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
-        
     }
 }
