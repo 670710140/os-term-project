@@ -38,7 +38,7 @@ public class Scheduler extends Thread {
     public void run() {
         try {
             while (true) {
-                Job job = arrivalQueue.take(); //รับงานมา
+                Job job = arrivalQueue.take(); //รอจนกว่าจะมีงานนะ (รับงานมา)
                 readyQueue.add(job);// ส่งงานไป
             }
         } catch (InterruptedException e) {
