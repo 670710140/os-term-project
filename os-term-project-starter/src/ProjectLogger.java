@@ -31,6 +31,7 @@ public final class ProjectLogger {
     public ProjectLogger(PrintStream out) {
         this.out = out;
         this.startNanos = System.nanoTime();
+        // System.nanoTime(); => look at system clock that start at beginning of Java something something
     }
 
     /**

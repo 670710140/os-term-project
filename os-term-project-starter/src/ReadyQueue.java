@@ -21,23 +21,34 @@
 /*
     ใช้ BlockingQueue สำหรับ การเขียน FCFS
  */
+import java.util.Comparator;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class ReadyQueue {
     // TODO: เก็บนโยบาย (Config.Policy) และโครงสร้างข้อมูลที่ใช้เก็บงาน
     private BlockingQueue<Job> queue;
+    private Config.Policy  policy;
     
     public ReadyQueue(Config.Policy policy) {
         // TODO
         queue = new LinkedBlockingQueue<>();
-        throw new UnsupportedOperationException("TODO: ReadyQueue constructor");
+        this.policy = policy;
+        //throw new UnsupportedOperationException("TODO: ReadyQueue constructor");
     }
 
     /** ใส่งานเข้าคิว เรียกโดย Scheduler Thread */
     public void add(Job job) {
         // TODO
-        queue.add(job); //บรรทัดนี่นะ มันคือการ เอาค่า จาก add จาก เมธอด add มาใส่ใน ✅ เก็บงาน
+        //queue.add(job); //บรรทัดนี่นะ มันคือการ เอาค่า จาก add จาก เมธอด add มาใส่ใน ✅ เก็บงาน
+        switch (policy) {
+            case FCFS -> queue.add(job);
+            case PRIORITY -> addPRIORITY(job);
+            // case AGING -> addAGING(job);
+            // case MILF -> addMILF(job);
+        };;
+
         //throw new UnsupportedOperationException("TODO: ReadyQueue.add");
     }
 
@@ -49,7 +60,13 @@ public class ReadyQueue {
      */
     public Job take() throws InterruptedException {
         // TODO
-        return queue.take(); //เอางานไปทำ✅
+        return switch (policy) {
+            case FCFS -> queue.take();
+            case PRIORITY -> takePRIORITY();
+            case AGING -> null;
+            case MILF -> null;
+        };
+        //return queue.take(); //เอางานไปทำ✅
         //throw new UnsupportedOperationException("TODO: ReadyQueue.take");
     }
 
@@ -59,4 +76,41 @@ public class ReadyQueue {
         return queue.size();
         //throw new UnsupportedOperationException("TODO: ReadyQueue.size");
     }
+
+    // private void FCFS(Job job) {
+        
+    // }
+
+    // private Job takeFCFS() {
+         
+    // }
+
+    private int minIntPriority = 128;
+    private void addPRIORITY(Job job) {
+        if (job.priority < minIntPriority) {
+            minIntPriority = job.priority;
+        }
+        queue.add(job);
+    }
+
+    private Job takePRIORITY() {
+        Job highest = null;
+        for (Job job : queue) {
+            if (job.priority < highest.priority) {
+                highest = job;
+            }
+        }
+        queue.remove(highest);
+        return highest;
+    }
+
+    private void AGING(Job job) {
+
+    }
+
+    private void MILF(Job job) {
+
+    }
+
+    
 }

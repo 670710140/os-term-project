@@ -23,7 +23,9 @@ public final class Config {
     /** นโยบายการจัดลำดับงาน */
     public enum Policy {
         FCFS,
-        PRIORITY
+        PRIORITY,
+        AGING,
+        MILF // or something, i forget
     }
 
     public final String workloadPath;

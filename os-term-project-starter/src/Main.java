@@ -1,4 +1,12 @@
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * จุดเริ่มต้นของโปรแกรม
@@ -30,7 +38,10 @@ public class Main {
         ProjectLogger logger = new ProjectLogger();
         List<Job> jobs;
         try {
-            jobs = WorkloadLoader.load(config.workloadPath);
+            jobs = WorkloadLoader.load(config.workloadPath);         
+            // return Collections.unmodifiableList(jobs);
+            // WHYyyyyyyyy!
+            jobs = new ArrayList<>(WorkloadLoader.load(config.workloadPath));
         } catch (WorkloadFormatException e) {
             System.err.println("ไฟล์ workload ผิดรูปแบบ — " + e.getMessage());
             System.exit(1);
@@ -82,5 +93,48 @@ public class Main {
         // TODO: หา makespan = เวลาที่งานชิ้นสุดท้ายเสร็จ (ใช้ logger.now())
         // TODO: เรียก statistics.printSummary(jobs, makespanMs)
         // TODO: logger.systemStop(completed, jobs.size())
+
+        // job gen creation and thread to put job inside arrival Q
+        BlockingQueue<Job> arrivalQueue = new LinkedBlockingQueue<Job>(500); // " Five - Hundred - BlockingQueue "
+
+        JobGenerator jobGenObj = new JobGenerator(jobs, logger, arrivalQueue);
+        Thread jebGenThread = new Thread(jobGenObj);
+        jebGenThread.start();
+        jobGenObj.run();
+
+        //BlockingQueue<Job> readyQueue = new LinkedBlockingQueue<>(500); // " Five - Hundred - BlockingQueue "
+        ReadyQueue readyQueue = new ReadyQueue(config.policy);
+        
+        Scheduler schedulerObj = new Scheduler(readyQueue, logger, arrivalQueue);
+        Thread schedulerThread = new Thread(schedulerObj);
+        schedulerThread.start();
+        schedulerObj.run();
+
+        // ExecutorService pool = Executors.newFixedThreadPool(config.workers);
+        // List<Worker> workerList = new ArrayList<Worker>();
+        // for (int i = 0; i < config.workers; i++) {
+        //     Worker worker = new Worker("worker-" + String.valueOf(i+1), readyQueue, null, null, logger);
+        //     workerList.add(worker);
+        // }
+        // for (Worker worker : workerList) {
+        //     pool.submit(worker);
+        // }
+
+        //List<Thread> pool = new ArrayList<Thread>(config.workers);
+        for (int i = 0; i < config.workers; i++) {
+            Worker worker = new Worker("worker-" + String.valueOf(i+1), readyQueue, null, null, logger);
+            Thread thread = new Thread(worker);
+            thread.start();;
+            thread.run();
+        }
+        // for (Thread thread : pool) {
+        //     thread.start();
+        //     thread.run();
+        // }
     }
+
+
+    // void callWorker(Config config) {
+
+    // }
 }
