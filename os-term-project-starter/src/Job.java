@@ -36,17 +36,13 @@ public class Job {
      */
     public final int sequence;
 
-    //=====================================================================
-    private long actualArrivalMs = -1;
+    // =====================================================================
+    private volatile long actualArrivalMs = -1;
+    private volatile long startMs = -1;
+    private volatile long finishMs = -1;
+    private volatile long resourceWaitMs = 0;
+    // volatile == prevents the JVM and the processor from reordering reads and writes instruction
 
-    public void setActualArrivalMs(long actualArrivalMs) {
-        this.actualArrivalMs = actualArrivalMs;
-    }
-
-    public long getActualArrivalMs() {
-        return actualArrivalMs;
-    }
-    //=====================================================================
     public Job(String id, long arrivalMs, int priority, long workMs, ResourceType resource, long resourceMs,
             int sequence) {
         this.id = id;
@@ -71,10 +67,71 @@ public class Job {
     // 1. ใช้เวลาจากนาฬิกาตัวไหน (ดู ProjectLogger.now() ซึ่งให้เวลาฐานเดียว
     // กับที่ปรากฏใน log ทำให้ค่าที่วัดกับ log ตรวจสอบกันได้)
     // 2. ฟิลด์ใดถูกเขียนโดย Thread หนึ่งแล้วอ่านโดยอีก Thread หนึ่ง
-    // และต้องป้องกันอย่างไร
+    // และต้องป้องกันอย่างไร 
+    // answer = volatile
     // 3. ผลที่ได้ต้องสอดคล้องกับสมการตรวจสอบในหัวข้อ 8:
     // Turnaround = Waiting + workMs + Resource Wait + resourceMs
     // =====================================================================
+
+    public void setActualArrivalMs(long actualArrivalMs) {
+        this.actualArrivalMs = actualArrivalMs;
+    }
+
+    public long getActualArrivalMs() {
+        return actualArrivalMs;
+    }
+
+    public void setStartMs(long value) {
+        this.startMs = value;
+    }
+
+    public long getStartMs() {
+        return startMs;
+    }
+
+    public void setFinishMs(long value) {
+        this.finishMs = value;
+    }
+
+    public long getFinishMs() {
+        return finishMs;
+    }
+
+    public void setResourceWaitMs(long value) {
+        this.resourceWaitMs = value;
+    }
+
+    public long getResourceWaitMs() {
+        return resourceWaitMs;
+    }
+
+    public long getWaitingTimeMs() {
+        return startMs - actualArrivalMs;
+        // if (actualArrivalMs < 0 || startMs < 0) {
+        //     return 0;
+        // } else {
+        //     return Math.max(0, startMs - actualArrivalMs);
+        // }
+        // return actualArrivalMs < 0 || startMs < 0 ? 0 : Math.max(0, startMs - actualArrivalMs);
+    }
+
+    public long getTurnaroundTimeMs() {
+        return finishMs - actualArrivalMs;
+        // if (actualArrivalMs < 0 || finishMs < 0) {
+        //     return 0;
+        // } else {
+        //     return Math.max(0, finishMs - actualArrivalMs);
+        // }
+        //return actualArrivalMs < 0 || finishMs < 0 ? 0 : Math.max(0, finishMs - actualArrivalMs);
+    }
+
+    public boolean isPoisonPill() {
+        return sequence == Integer.MIN_VALUE && "__SCHEDULER_POISON__".equals(id);
+    }
+
+    public static Job poisonPill() {
+        return new Job("__SCHEDULER_POISON__", Long.MAX_VALUE, Integer.MAX_VALUE, 0, ResourceType.NONE, 0, Integer.MIN_VALUE);
+    }
 
     @Override
     public String toString() {

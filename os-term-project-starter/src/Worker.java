@@ -1,6 +1,4 @@
-import java.util.Comparator;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Thread ที่ดึงงานจาก Ready Queue ไปทำจนเสร็จ
@@ -21,17 +19,23 @@ import java.util.concurrent.PriorityBlockingQueue;
  * permit จะค้างถาวรและระบบจะแขวน ต้องออกแบบให้คืนได้เสมอ
  * - Worker ต้องหยุดเองได้เมื่อไม่มีงานเหลือแล้ว ไม่ใช่วนรอตลอดไป
  */
+
+/** hreads execute job, always return acquired resource permits?? */
 public class Worker extends Thread {
 
     // TODO: เก็บ ReadyQueue, ResourceManager, Statistics และ logger
-    private ReadyQueue readyQueue;
-    private ResourceManager resources;
-    private Statistics statistics;
-    private ProjectLogger logger;
+    private final ReadyQueue readyQueue;
+    private final ResourceManager resources;
+    private final Statistics statistics;
+    private final ProjectLogger logger;
+    private final AtomicInteger runningCount;
 
-    public Worker(String name, ReadyQueue readyQueue, ResourceManager resources, Statistics statistics,
-            ProjectLogger logger) {
+    // public Worker(String name, ReadyQueue readyQueue, ResourceManager resources, Statistics statistics, ProjectLogger logger) {
+    //     this(name, readyQueue, resources, statistics, logger, new AtomicInteger());
+    // }
 
+    public Worker(String name, ReadyQueue readyQueue, ResourceManager resources,
+                  Statistics statistics, ProjectLogger logger, AtomicInteger runningCount) {
         super(name);
 
         // TODO
@@ -39,39 +43,46 @@ public class Worker extends Thread {
         this.resources = resources;
         this.statistics = statistics;
         this.logger = logger;
+        this.runningCount = runningCount;
 
         // throw new UnsupportedOperationException("TODO: Worker constructor");
     }
 
     @Override
     public void run() {
+        // System.out.println("hi guys");
         // TODO: วนรับงานและเรียก processJob จนกว่าจะได้รับสัญญาณให้หยุด
         try {
-            while (true) {
-                // shutdown down condition ?? where
+            while (!Thread.currentThread().isInterrupted()) {
+                // shutdown down condition
 
                 // ขั้นที่1 รับงานจาก Ready Queue แล้วบันทึกเวลาเริ่ม
-                Job job = readyQueue.take(); // ถ้ามีงาน เอางานมา ถ้ายังไม่มีงาน ให้รอ
+                Job job = readyQueue.take();
 
-                // ขั้นที่2-5
-                processJob(job);
+                
+                if (job.isPoisonPill()) return;
+                runningCount.incrementAndGet();
+                try {
+                    processJob(job);
+                } finally {
+                    runningCount.decrementAndGet();
+                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
+    /** order: work/zZzZz, resource wait/use Zzz, completion. */
     /** ทำงานหนึ่งชิ้นให้จบตามลำดับ 5 ขั้นด้านบน */
     private void processJob(Job job) throws InterruptedException {
-
-        // TODO
-        boolean acquired = false;
+        job.setStartMs(logger.now());
 
         // ขั้นที่1 รับงานจาก Ready Queue แล้วบันทึกเวลาเริ่ม
         logger.jobStarted(job); // เริ่ม รับงานไปทำ
 
         // 2. จำลองงานหลักด้วย Thread.sleep(job.workMs)
-        Thread.sleep(job.workMs); // นอน
+        Thread.sleep(job.workMs); // นอน  aka : working
         logger.workFinished(job); // งานเสร็จ
 
         // 3. ถ้า job.resource != NONE ให้บันทึกเวลาเริ่มรอ แล้ว acquire
@@ -81,31 +92,35 @@ public class Worker extends Thread {
         // public final ResourceType resource;
 
         if (job.resource != ResourceType.NONE) {
+            long waitStart = logger.now(); // starting request
+            logger.resourceWaitStarted(job);
+            boolean acquired = false;
 
             try {
-                logger.resourceWaitStarted(job);
+                acquired = resources.acquire(job.resource); // request resource
 
-                long waitStart = logger.now(); // บันทึกเวลา
+                long waitedMs = logger.now() - waitStart; 
 
-                resources.acquire(job.resource); // ขอใช้สิทธิ์ของ Resource ที่ Job นี้ต้องการ
-
-                acquired = true;
-
-                long waitedMs = logger.now() - waitStart;
+                job.setResourceWaitMs(waitedMs);
 
                 logger.resourceAcquired(job, waitedMs);
-
+                
                 // 4. จำลองการถือครองด้วย Thread.sleep(job.resourceMs)
                 Thread.sleep(job.resourceMs);
-
             } finally {
                 if (acquired) {
                     resources.release(job.resource); // คืนสิทธิ์
                     logger.resourceReleased(job); // บันทึกเหตุการณ์ว่า Resource ถูกคืนแล้ว
                 }
             }
+        } else {
+            job.setResourceWaitMs(0);
         }
+
         // 5. release แล้วบันทึกเวลาจบ
+        job.setFinishMs(logger.now());
         logger.jobCompleted(job);
+        statistics.recordCompletion(job); // this will CountDownLatch by 1
+        //System.out.println(job.toString());
     }
 }

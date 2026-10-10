@@ -1,3 +1,5 @@
+import java.util.concurrent.Semaphore;
+
 /**
  * ควบคุมสิทธิ์การใช้ทรัพยากรร่วมของทั้งระบบ
  *
@@ -16,33 +18,52 @@
  *   - ถ้า Thread ถูก interrupt หลัง acquire สำเร็จแต่ก่อน release
  *     โค้ดของกลุ่มยังคืน permit ได้หรือไม่
  */
-public class ResourceManager {
 
-    // TODO: เก็บ Semaphore ของ PRINTER และ DATABASE
+/** Fair semaphore-based access control for the shared resources. */
+public class ResourceManager {
+    private final int printerCapacity;
+    private final int databaseCapacity;
+    private final Semaphore printer;
+    private final Semaphore database;
 
     public ResourceManager(int printerPermits, int databasePermits) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: ResourceManager constructor");
+        this.printerCapacity = printerPermits;
+        this.databaseCapacity = databasePermits;
+        this.printer = new Semaphore(printerPermits, true);
+        this.database = new Semaphore(databasePermits, true);
     }
 
-    /** ขอสิทธิ์ใช้ทรัพยากร จะรอจนกว่าจะได้ */
-    public void acquire(ResourceType type) throws InterruptedException {
-        // TODO
-        throw new UnsupportedOperationException("TODO: ResourceManager.acquire");
+    public boolean acquire(ResourceType type) throws InterruptedException {
+        switch (type) {
+            case NONE:
+                return false;
+            case PRINTER:
+                printer.acquire();
+                return true;
+            case DATABASE:
+                database.acquire();
+                return true;
+            default:  throw new UnsupportedOperationException("Acq Wrong type");
+        }
     }
 
-    /** คืนสิทธิ์ใช้ทรัพยากร */
     public void release(ResourceType type) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: ResourceManager.release");
+        
+        switch (type) {
+            case PRINTER:
+                printer.release();
+                break;
+            case DATABASE:
+                database.release();
+                break;
+            default:
+                throw new UnsupportedOperationException("Res wrong type");
+        }
     }
 
-    /**
-     * ข้อความสั้น ๆ บอกสถานะการใช้ทรัพยากร สำหรับส่งให้ ProjectLogger.monitor()
-     * เช่น "printer=1/1 database=0/2"
-     */
     public String status() {
-        // TODO
-        throw new UnsupportedOperationException("TODO: ResourceManager.status");
+        return String.format("printer=%d/%d database=%d/%d",
+                printerCapacity - printer.availablePermits(), printerCapacity,
+                databaseCapacity - database.availablePermits(), databaseCapacity);
     }
 }

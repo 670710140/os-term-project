@@ -1,12 +1,9 @@
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * จุดเริ่มต้นของโปรแกรม
@@ -19,11 +16,11 @@ import java.util.concurrent.LinkedBlockingQueue;
  * วิธีรัน:
  *   java Main jobs_standard.csv priority 3 1 2
  */
-public class Main {
 
+public class Main {
     public static void main(String[] args) {
         // ---------- 1. รับค่าจาก command line ----------
-        Config config;
+        final Config config;
         try {
             config = Config.parse(args);
         } catch (IllegalArgumentException e) {
@@ -36,79 +33,45 @@ public class Main {
 
         // ---------- 2. เริ่มจับเวลาและโหลด workload ----------
         ProjectLogger logger = new ProjectLogger();
-        List<Job> jobs;
+        final List<Job> jobs;
         try {
-            jobs = WorkloadLoader.load(config.workloadPath);         
-            // return Collections.unmodifiableList(jobs);
-            // WHYyyyyyyyy!
             jobs = new ArrayList<>(WorkloadLoader.load(config.workloadPath));
         } catch (WorkloadFormatException e) {
             System.err.println("ไฟล์ workload ผิดรูปแบบ — " + e.getMessage());
             System.exit(1);
             return;
-        } catch (java.io.IOException e) {
+        } catch (IOException e) {
             System.err.println("เปิดไฟล์ \"" + config.workloadPath + "\" ไม่ได้");
             System.err.println("ตรวจว่าไฟล์มีอยู่จริงและ path ถูกต้อง (สั่ง java จากโฟลเดอร์ใด)");
             System.exit(1);
             return;
         }
+
         logger.systemStart(config);
         logger.systemEvent("โหลดงานได้ " + jobs.size() + " ชิ้น");
 
-        // ---------- 3. สร้างส่วนประกอบของระบบ ----------
-        // TODO: สร้าง ResourceManager จากจำนวน permit ใน config
-        // TODO: สร้าง ReadyQueue ตามนโยบายใน config
-        // TODO: สร้าง Statistics
-
-        // ---------- 4. สร้างและเริ่ม Thread ----------
-        // TODO: สร้าง Worker จำนวน config.workers ตัว แล้ว start
-        // TODO: สร้างและ start Scheduler
-        // TODO: สร้างและ start Monitor
-        // TODO: สร้างและ start JobGenerator
-        //
-        // ลำดับการ start มีผลหรือไม่ ให้คิดและอธิบายได้ใน Demo
-
-        // ---------- 5. รอจนงานเสร็จครบ ----------
-        // TODO: รอจนกว่างานทั้ง jobs.size() ชิ้นจะเสร็จ
-        //
-        // *** นี่คือจุดที่ยากที่สุดของโครงงานนี้ ***
-        // Worker ที่กำลังรออยู่ในคิวไม่มีทางรู้ได้เองว่าจะไม่มีงานเข้ามาอีกแล้ว
-        // กลุ่มต้องออกแบบวิธีบอก โดยห้ามใช้การเดาเวลา เช่น sleep(10000)
-        //
-        // เทคนิคที่ไปหาอ่านต่อได้ (เลือกใช้อันใดอันหนึ่งหรือผสมกันก็ได้):
-        //   - poison pill
-        //   - CountDownLatch
-        //   - ตัวนับงานค้างที่ป้องกันด้วย lock
-        //
-        // อาการผิดที่ต้องไม่เกิด:
-        //   1. main จบแล้วแต่ JVM ไม่ปิด เพราะยังมี Thread ค้างอยู่
-        //   2. Worker หยุดก่อนที่งานชิ้นสุดท้ายจะทำเสร็จ
-        //   3. permit ค้างเพราะถูก interrupt ระหว่างถือ resource
-
-        // ---------- 6. สั่งหยุดทุก Thread ----------
-        // TODO: หยุด Worker ทุกตัว, Scheduler, Monitor และ JobGenerator
-        // TODO: join ทุก Thread เพื่อยืนยันว่าหยุดจริงก่อนไปขั้นถัดไป
-
-        // ---------- 7. สรุปผล ----------
-        // TODO: หา makespan = เวลาที่งานชิ้นสุดท้ายเสร็จ (ใช้ logger.now())
-        // TODO: เรียก statistics.printSummary(jobs, makespanMs)
-        // TODO: logger.systemStop(completed, jobs.size())
-
-        // job gen creation and thread to put job inside arrival Q
-        BlockingQueue<Job> arrivalQueue = new LinkedBlockingQueue<Job>(500); // " Five - Hundred - BlockingQueue "
-
-        JobGenerator jobGenObj = new JobGenerator(jobs, logger, arrivalQueue);
-        Thread jebGenThread = new Thread(jobGenObj);
-        jebGenThread.start();
-        jobGenObj.run();
-
-        //BlockingQueue<Job> readyQueue = new LinkedBlockingQueue<>(500); // " Five - Hundred - BlockingQueue "
+        ResourceManager resources = new ResourceManager(config.printerPermits, config.databasePermits);
         ReadyQueue readyQueue = new ReadyQueue(config.policy);
-        
-        Scheduler schedulerObj = new Scheduler(readyQueue, logger, arrivalQueue);
-        Thread schedulerThread = new Thread(schedulerObj);
-        schedulerThread.start();
-        schedulerObj.run();
+        Statistics statistics = new Statistics(jobs.size());
+        BlockingQueue<Job> arrivalQueue = new LinkedBlockingQueue<>();
+        AtomicInteger runningCount = new AtomicInteger();
+
+        List<Worker> workers = new ArrayList<>();
+        for (int i = 0; i < config.workers; i++) {
+            workers.add(new Worker("worker-" + (i + 1), readyQueue, resources,
+                    statistics, logger, runningCount));
+        }
+        Scheduler scheduler = new Scheduler(readyQueue, logger, arrivalQueue, config.workers);
+        Monitor monitor = new Monitor(readyQueue, resources, statistics, logger, runningCount);
+        JobGenerator generator = new JobGenerator(jobs, logger, arrivalQueue);
+
+        // Start all worker thread
+        for (Worker worker : workers) {
+            worker.start();
+        }
+        scheduler.start();
+        monitor.start();
+        generator.start();
 
         // ExecutorService pool = Executors.newFixedThreadPool(config.workers);
         // List<Worker> workerList = new ArrayList<Worker>();
@@ -121,20 +84,33 @@ public class Main {
         // }
 
         //List<Thread> pool = new ArrayList<Thread>(config.workers);
-        for (int i = 0; i < config.workers; i++) {
-            Worker worker = new Worker("worker-" + String.valueOf(i+1), readyQueue, null, null, logger);
-            Thread thread = new Thread(worker);
-            thread.start();;
-            thread.run();
+
+        try {
+            statistics.awaitCompletion(); //wait till all worker done their job
+            // The final job completion means the generator and scheduler have already
+            // submitted all real jobs, and workers can now consume their poison pills.
+            generator.join();
+            scheduler.join();
+            for (Worker worker : workers) worker.join();
+            // join == main wait for all instance threads to be terminated
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.systemEvent("Main interrupted while waiting for completion");
+            // Do not strand workers/resources if the main thread is interrupted.
+            generator.interrupt();
+            scheduler.interrupt();
+            for (Worker worker : workers) worker.interrupt();
+        } finally {
+            monitor.interrupt();
+            try {
+                monitor.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
-        // for (Thread thread : pool) {
-        //     thread.start();
-        //     thread.run();
-        // }
+
+        long makespanMs = jobs.stream().mapToLong(Job::getFinishMs).max().orElse(logger.now());
+        statistics.printSummary(jobs, makespanMs);
+        logger.systemStop(statistics.completedCount(), jobs.size());
     }
-
-
-    // void callWorker(Config config) {
-
-    // }
 }

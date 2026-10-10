@@ -1,48 +1,43 @@
 import java.util.concurrent.BlockingQueue;
 
-/**
- * รับงานจาก JobGenerator แล้วจัดเข้า Ready Queue
- *
- * ===== ไฟล์นี้เป็นโครงเปล่า นักศึกษาต้องเขียนเอง =====
- *
- * ข้อกำหนดจากโจทย์ (หัวข้อ 2 และ 4):
- * - Scheduler เป็น Thread บังคับ ห้ามให้ JobGenerator ใส่งานลง Ready Queue
- * โดยตรง
- * - รับผิดชอบการจัดลำดับตามนโยบาย FCFS หรือ Priority
- *
- * ข้อควรคิด:
- * - Scheduler รับงานจาก JobGenerator ผ่านอะไร และรอโดยไม่กิน CPU อย่างไร
- * - เมื่อ JobGenerator ปล่อยงานครบแล้ว Scheduler รู้ได้อย่างไรว่าควรหยุด
- */
+/** Transfers arriving jobs into the policy-specific ready queue. */
 public class Scheduler extends Thread {
-
-    // TODO: เก็บช่องทางรับงานจาก JobGenerator, ReadyQueue ปลายทาง และ logger
-    //
-    // หมายเหตุ: constructor ด้านล่างยังไม่มี parameter สำหรับ "ช่องทางรับงาน"
-    // ให้เพิ่มเข้าไปให้ตรงกับที่ออกแบบไว้ใน JobGenerator
-    // เพิ่ม parameter ได้ แต่อย่าเปลี่ยนชื่อคลาส
-    private BlockingQueue<Job> arrivalQueue;
-    private ReadyQueue readyQueue;
-    private ProjectLogger logger;
+    private final BlockingQueue<Job> arrivalQueue;
+    private final ReadyQueue readyQueue;
+    private final int workerCount;
 
     public Scheduler(ReadyQueue readyQueue, ProjectLogger logger, BlockingQueue<Job> arrivalQueue) {
+        this(readyQueue, logger, arrivalQueue, 1);
+        System.out.println("No worker input : defualt to 1");
+    }
+
+    public Scheduler(ReadyQueue readyQueue, ProjectLogger logger,
+                     BlockingQueue<Job> arrivalQueue, int workerCount) {
         super("scheduler");
-        // TODO
-        // throw new UnsupportedOperationException("TODO: Scheduler constructor");
         this.readyQueue = readyQueue;
-        this.logger = logger;
         this.arrivalQueue = arrivalQueue;
+        if (workerCount < 1) {
+            throw new IllegalArgumentException("message from scheduler's construct: worker <= 0!");
+        }
+        this.workerCount = workerCount;
     }
 
     @Override
     public void run() {
+        System.out.println("scheduler Thead Started");
         try {
             while (true) {
-                Job job = arrivalQueue.take(); //รอจนกว่าจะมีงานนะ (รับงานมา)
-                readyQueue.add(job);// ส่งงานไป
+                Job job = arrivalQueue.take();
+                if (job.isPoisonPill()) {
+                    for (int i = 0; i < workerCount; i++) readyQueue.add(Job.poisonPill());
+                    System.out.println("scheduler found poison pill \nscheduler Thread END");
+                    return;
+                }
+                readyQueue.add(job);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+        System.out.println("message from scheduler.run() {you should not see this}");
     }
 }

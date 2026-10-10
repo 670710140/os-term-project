@@ -1,3 +1,5 @@
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Thread ที่รายงานสถานะระบบเป็นระยะ
  *
@@ -16,6 +18,8 @@
  * ข้อควรคิด: ตัวนับ running ควรอยู่ที่ไหน ใครเป็นคนเพิ่มและลด
  * และจะอ่านพร้อมกับ ready กับ completed ให้เป็นภาพเดียวกันได้อย่างไร
  */
+
+/** Periodically report a thread-safe snapshot of scheduler state. */
 public class Monitor extends Thread {
 
     // TODO: เก็บสิ่งที่ต้องอ่านสถานะ และ logger
@@ -24,15 +28,40 @@ public class Monitor extends Thread {
     // เพราะยังไม่มีการตัดสินว่าตัวนับนั้นควรอยู่ที่ไหน ให้เพิ่ม parameter
     // เข้าไปเองเมื่อออกแบบเสร็จ
 
+    private final ReadyQueue readyQueue;
+    private final ResourceManager resources;
+    private final Statistics statistics;
+    private final ProjectLogger logger;
+    private final AtomicInteger runningCount;
+
+    // public Monitor(ReadyQueue readyQueue, ResourceManager resources,
+    //                Statistics statistics, ProjectLogger logger) {
+    //     this(readyQueue, resources, statistics, logger, new AtomicInteger());
+    // }
+
     public Monitor(ReadyQueue readyQueue, ResourceManager resources,
-                   Statistics statistics, ProjectLogger logger) {
+                   Statistics statistics, ProjectLogger logger, AtomicInteger runningCount) {
         super("monitor");
-        // TODO
-        throw new UnsupportedOperationException("TODO: Monitor constructor");
+        this.readyQueue = readyQueue;
+        this.resources = resources;
+        this.statistics = statistics;
+        this.logger = logger;
+        this.runningCount = runningCount;
+        //throw new UnsupportedOperationException("TODO: Monitor constructor");
     }
 
     @Override
     public void run() {
         // TODO: วนรายงานสถานะทุก ~1000 ms จนกว่าจะได้รับสัญญาณให้หยุด
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                logger.monitor(readyQueue.size(), runningCount.get(),
+                        statistics.completedCount(), resources.status());
+                Thread.sleep(1000);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("\u001B[31m" + "monitor kaboom" + "\u001B[0m");
+        }
     }
 }
