@@ -14,12 +14,12 @@ Put the file you want to download into a folder named `shared` (next to where yo
 
 ```bash
 # Terminal 1 — server        (mode: trad = Traditional I/O, nio = NIO transferTo)
-java -cp out Server nio
+java -cp out Server nio  ||  java -cp out Server <anything>  (this will run serer on Traditional I/O Mode)
 
 # Terminal 2 — client
 java -cp out Client list
 java -cp out Client info test.bin
-java -cp out Client download test.bin 10 nio 3
+java -cp out Client download test.bin 10 nio 3  ||  java -cp out Client download test.bin 10 <anything> 3 
 #                            file     workers mode runs
 ```
 
